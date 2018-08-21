@@ -19,12 +19,16 @@ export default class ScrollSyncPane extends Component {
     children: PropTypes.node.isRequired,
     attachTo: PropTypes.object,
     group: PropTypes.oneOfType([PropTypes.string, PropTypes.arrayOf(PropTypes.string)]),
+    vertical: PropTypes.bool,
+    horizontal: PropTypes.bool,
     enabled: PropTypes.bool
   }
 
   static defaultProps = {
     group: 'default',
-    enabled: true
+    enabled: true,
+    vertical: true,
+    horizontal: true
   }
 
   static contextTypes = {
@@ -35,24 +39,32 @@ export default class ScrollSyncPane extends Component {
   componentDidMount() {
     if (this.props.enabled) {
       this.node = this.props.attachTo || ReactDOM.findDOMNode(this)
-      this.context.registerPane(this.node, this.toArray(this.props.group))
+      this.context.registerPane(this.node, this.getOptions())
     }
   }
 
   componentWillReceiveProps(nextProps) {
     if (this.props.enabled && this.props.group !== nextProps.group) {
-      this.context.unregisterPane(this.node, this.toArray(this.props.group))
-      this.context.registerPane(this.node, this.toArray(nextProps.group))
+      this.context.unregisterPane(this.node, this.getOptions())
+      this.context.registerPane(this.node, this.getOptions())
     }
   }
 
   componentWillUnmount() {
     if (this.props.enabled) {
-      this.context.unregisterPane(this.node, this.toArray(this.props.group))
+      this.context.unregisterPane(this.node, this.getOptions())
     }
   }
 
-  toArray = groups => [].concat(groups)
+  getOptions = () => {
+    const { group, horizontal, vertical } = this.props
+
+    return {
+      horizontal,
+      vertical,
+      group
+    }
+  }
 
   render() {
     return this.props.children

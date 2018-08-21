@@ -37,7 +37,9 @@ export default class ScrollSync extends Component {
 
   panes = {}
 
-  registerPane = (node, groups) => {
+  registerPane = (node, options) => {
+    const { group: groups } = options
+
     groups.forEach((group) => {
       if (!this.panes[group]) {
         this.panes[group] = []
@@ -47,18 +49,28 @@ export default class ScrollSync extends Component {
         if (this.panes[group].length > 0) {
           this.syncScrollPosition(this.panes[group][0], node)
         }
-        this.panes[group].push(node)
+        this.panes[group].push({ node, options })
       }
     })
     this.addEvents(node, groups)
   }
 
-  unregisterPane = (node, groups) => {
+  unregisterPane = (node, options) => {
+    const { group: groups } = options
+
     groups.forEach((group) => {
-      if (this.findPane(node, group)) {
-        this.removeEvents(node)
-        this.panes[group].splice(this.panes[group].indexOf(node), 1)
+      if (!this.findPane(node, group)) {
+        return
       }
+
+      this.removeEvents(node)
+      const panelGroup = this.panes[group] || []
+
+      panelGroup.forEach(({ node: currentNode }, index) => {
+        if (currentNode === node) {
+          this.panes[group].splice(index, 1)
+        }
+      })
     })
   }
 
@@ -90,7 +102,7 @@ export default class ScrollSync extends Component {
     })
   }
 
-  syncScrollPosition(scrolledPane, pane) {
+  syncScrollPosition(scrolledPane, pane, options) {
     const {
       scrollTop,
       scrollHeight,
@@ -99,6 +111,11 @@ export default class ScrollSync extends Component {
       scrollWidth,
       clientWidth
     } = scrolledPane
+
+    const {
+      vertical: verticalPane,
+      horizontal: horizontalPane
+    } = options
 
     const scrollTopOffset = scrollHeight - clientHeight
     const scrollLeftOffset = scrollWidth - clientWidth
@@ -109,22 +126,22 @@ export default class ScrollSync extends Component {
     const paneHeight = pane.scrollHeight - clientHeight
     const paneWidth = pane.scrollWidth - clientWidth
     /* Adjust the scrollTop position of it accordingly */
-    if (vertical && scrollTopOffset > 0) {
+    if (verticalPane && vertical && scrollTopOffset > 0) {
       pane.scrollTop = proportional ? (paneHeight * scrollTop) / scrollTopOffset : scrollTop // eslint-disable-line
     }
-    if (horizontal && scrollLeftOffset > 0) {
+    if (horizontalPane && horizontal && scrollLeftOffset > 0) {
       pane.scrollLeft = proportional ? (paneWidth * scrollLeft) / scrollLeftOffset : scrollLeft // eslint-disable-line
     }
   }
 
   syncScrollPositions = (scrolledPane, groups) => {
     groups.forEach((group) => {
-      this.panes[group].forEach((pane) => {
+      this.panes[group].forEach(({ pane, options }) => {
         /* For all panes beside the currently scrolling one */
         if (scrolledPane !== pane) {
           /* Remove event listeners from the node that we'll manipulate */
-          this.removeEvents(pane, group)
-          this.syncScrollPosition(scrolledPane, pane)
+          this.removeEvents(pane)
+          this.syncScrollPosition(scrolledPane, pane, options)
           /* Re-attach event listeners after we're done scrolling */
           window.requestAnimationFrame(() => {
             this.addEvents(pane, groups)
